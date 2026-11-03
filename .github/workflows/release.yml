@@ -1,0 +1,60 @@
+name: Release preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: New preview release tag
+        required: true
+        default: v0.1.0-preview.1
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 120
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build archive tooling
+        run: ./build.ps1
+      - name: Verify source-only packet tests
+        run: |
+          python -m pip install -r requirements.txt
+          python -m unittest test_packet_decoder -v
+          if ($LASTEXITCODE -ne 0) { throw 'Packet checks failed' }
+          dotnet bin/Release/net10.0/ChroniclesAssetExtractor.dll --help
+          if ($LASTEXITCODE -ne 0) { throw 'Extractor startup failed' }
+      - name: Package redistributable files
+        run: ./tools/package_release.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asset-extractor-win64
+          path: |
+            out/release/*.zip
+            out/release/*.sha256
+          if-no-files-found: error
+      - name: Create draft preview release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+$') {
+              throw 'Use a new vMAJOR.MINOR.PATCH-preview.NUMBER tag.'
+          }
+          $files = Get-ChildItem out/release -File | Select-Object -ExpandProperty FullName
+          gh release create $env:RELEASE_TAG @files --target $env:GITHUB_SHA --draft --prerelease --title "Project Chronicles asset-extractor $env:RELEASE_TAG" --notes 'Initial experimental preview. No gameplay changes in this publication. Supply your own compatible client files; none are included. See the repository README for setup.'
+          if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed' }
