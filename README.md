@@ -10,7 +10,8 @@ builders and native packet-log utilities. Archive reading uses pinned public
 Python handles descriptor recovery, catalogs and verification.
 
 **No game files are included:** no client archives/binaries, extracted assets,
-descriptor/opcode exports, SDK dumps, captured packets, archive keys or decoder DLLs.
+descriptor/opcode exports, SDK dumps, captured packets or decoder DLLs.
+The validated archive key for the October 23, 2026 demo is documented below.
 Supply your own compatible local inputs. Synthetic decoder tests create their own
 small schemas in a temporary directory.
 
@@ -38,15 +39,22 @@ Run from the repository root. Use a new output directory outside the installed c
 ```powershell
 $paks = 'D:\Games\Chronicles\X5\Content\Paks'
 $snapshot = Join-Path (Get-Location) 'out/client-extraction'
-$archiveKey = 'D:\PrivateResearch\archive-key.local.txt'
+$archiveKey = Join-Path (Get-Location) 'out/archive-key.local.txt'
 $oodle = 'D:\LocalTools\oo2core_9_win64.dll'
+
+Set-Content -LiteralPath $archiveKey -NoNewline `
+    -Value '399E5CE7FC1100522BD20D7F7C9A86AA946A9BE0610EF10EF5136A04799224B1'
 
 dotnet bin/Release/net10.0/ChroniclesAssetExtractor.dll `
     $paks $snapshot --extract --key $archiveKey --oodle $oodle
 ```
 
-The reader uses your local key/decoder; it does not obtain them. It reads archives,
-normalizes the researched custom metadata in memory and records file sizes/hashes.
+The 64-character hexadecimal key above was validated against the installed
+October 23, 2026 demo archives. Other client builds may use a different key.
+Keep the key file outside the extraction output: that directory must be empty
+when the reader starts. The reader uses the supplied key and decoder; it reads
+archives, normalizes the researched custom metadata in memory and records file
+sizes/hashes.
 Source archives remain unchanged. Existing populated output directories are refused.
 Check the exit status and failed-file count before continuing.
 
@@ -114,9 +122,10 @@ clean checkout and creates a draft prerelease with its SHA-256 checksum. Choose 
 new `vMAJOR.MINOR.PATCH-preview.NUMBER` tag when dispatching it. A failed build does
 not create a release. Published previews appear on this repository's Releases page.
 
-Packages contain the application and selected support files only. They include no
-client installation, extracted game data, archive keys or credentials. Keep the whole
-package together; follow the setup instructions above before starting it. Windows
+Packages contain the application and selected support files only. The included
+README documents the demo archive key; no key file, client installation,
+extracted game data or credentials are packaged. Keep the whole package together;
+follow the setup instructions above before starting it. Windows
 C++ applications require the Microsoft Visual C++ x64 runtime; desktop interfaces
 also require Microsoft Edge WebView2 Runtime. The extractor package requires .NET 10.
 These experimental previews do not establish compatibility with another client build.
